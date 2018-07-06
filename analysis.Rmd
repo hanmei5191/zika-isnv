@@ -1,0 +1,94 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+variants=read_tsv("2018.01.15_ZIKV-iSNV/variants.tsv")
+```
+
+```{r}
+barcode1=read_tsv("BC01.freqs.txt")
+barcode1$replica = 'a'
+barcode2=read_tsv("BC02.freqs.txt")
+barcode2$replica = 'b'
+barcode3=read_tsv("BC03.freqs.txt")
+barcode3$replica = 'c'
+minion=rbind(barcode1, barcode2, barcode3)
+```
+
+```{r}
+ggplot(minion, aes(x=Freq)) + geom_histogram(bins=100)
+```
+
+
+
+```{r}
+snps = variants %>%
+ filter(startsWith(`Polymorphism Type`, 'SNP'))
+joined = inner_join(snps, minion, by=c("Minimum" = "Pos"))
+```
+
+```{r}
+filtered = joined %>%
+  filter(Qual == 14) %>%
+  filter(replica.x == replica.y) %>%
+  filter(modality == 'amplicon')
+
+fit = lm(filtered$Freq ~ filtered$freq)
+summary(fit)
+```
+
+
+```{r}
+p = joined %>% 
+  filter(Qual == 10) %>%
+  filter(modality == 'amplicon') %>%
+  ggplot(aes(x=Freq, y=freq)) + geom_point(size=0.2) + geom_smooth() + xlim(0, 0.5) + ylim(0, 0.5) + xlab("Nanopore allele freq") + ylab("Illumina allele freq") + facet_wrap(~replica.x~modality) + theme_bw(base_size=14)
+p
+```
+
+```{r}
+expectedpositions=read_tsv("refs/expectedpositions.txt")
+
+```
+
+```{r}
+a=inner_join(joined, expectedpositions, by=c("Minimum" = "Pos")) %>%
+  filter(Qual == 0) %>%
+  filter(modality == 'amplicon') %>%
+  filter(replica.x == replica.y) %>%
+  ggplot(aes(x=Freq, y=freq)) + geom_point(size=0.2) + geom_density2d() + xlim(0, 0.5) + ylim(0, 0.5) + xlab("Nanopore allele freq") + ylab("Illumina allele freq") + facet_wrap(~replica.x~modality) + theme_bw(base_size=14)
+a
+```
+
+```{r}
+snps = variants %>%
+ filter(startsWith(`Polymorphism Type`, 'SNP'))
+
+joined = inner_join(snps, snps, by="Minimum")
+
+joined %>%
+ filter(replica.x == replica.y) %>%
+ filter(modality.x != modality.y) %>%
+ ggplot(aes(x=freq.x, y=freq.y)) + geom_jitter(size=0.5) + facet_wrap(~replica.x)
+``` 
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
