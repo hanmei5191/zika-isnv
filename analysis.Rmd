@@ -12,13 +12,16 @@ variants=read_tsv("2018.01.15_ZIKV-iSNV/variants.tsv")
 ```
 
 ```{r}
-barcode1=read_tsv("BC01.freqs.txt")
+barcode1=read_tsv("BC01.variants.freqs.txt")
 barcode1$replica = 'a'
-barcode2=read_tsv("BC02.freqs.txt")
+barcode2=read_tsv("BC02.variants.freqs.txt")
 barcode2$replica = 'b'
-barcode3=read_tsv("BC03.freqs.txt")
+barcode3=read_tsv("BC03.variants.freqs.txt")
 barcode3$replica = 'c'
 minion=rbind(barcode1, barcode2, barcode3)
+minion %>%
+    filter(Qual == 0) %>%
+    write_tsv(path="minion_variants.tsv")
 ```
 
 ```{r}

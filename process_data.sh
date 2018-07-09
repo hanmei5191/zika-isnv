@@ -18,6 +18,9 @@ align_trim --normalise 1000 refs/ZikaAsian.scheme.bed <BC03.sorted.bam 2>/dev/nu
 samtools index BC01.trimmed.sorted.bam
 samtools index BC02.trimmed.sorted.bam
 samtools index BC03.trimmed.sorted.bam
-python scripts/freqs.py illumina_variants.tsv BC01.trimmed.sorted.bam KU926309 > BC01.freqs.txt
-python scripts/freqs.py illumina_variants.tsv BC02.trimmed.sorted.bam KU926309 > BC02.freqs.txt
-python scripts/freqs.py illumina_variants.tsv BC03.trimmed.sorted.bam KU926309 > BC03.freqs.txt
+python scripts/freqs.py illumina_variants.tsv BC01.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC01.freqs.txt
+python scripts/freqs.py illumina_variants.tsv BC02.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC02.freqs.txt
+python scripts/freqs.py illumina_variants.tsv BC03.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC03.freqs.txt
+python scripts/freqs.py --variants illumina_variants.tsv BC01.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC01.variants.freqs.txt
+python scripts/freqs.py --variants illumina_variants.tsv BC02.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC02.variants.freqs.txt
+python scripts/freqs.py --variants illumina_variants.tsv BC03.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC03.variants.freqs.txt
