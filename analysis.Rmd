@@ -1,44 +1,86 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
 ---
 
 ```{r}
 library(tidyverse)
+library(stringi)
 ```
 
 ```{r}
-variants=read_tsv("2018.01.15_ZIKV-iSNV/variants.tsv")
+variants=read_tsv("illumina_variants.tsv")
 ```
 
 ```{r}
-barcode1=read_tsv("BC01.variants.freqs.txt")
-barcode1$replica = 'a'
-barcode2=read_tsv("BC02.variants.freqs.txt")
-barcode2$replica = 'b'
-barcode3=read_tsv("BC03.variants.freqs.txt")
-barcode3$replica = 'c'
-minion=rbind(barcode1, barcode2, barcode3)
-minion %>%
+barcode1v=read_tsv("BC01.variants.freqs.txt")
+barcode1v$replica = 'a'
+barcode2v=read_tsv("BC02.variants.freqs.txt")
+barcode2v$replica = 'b'
+barcode3v=read_tsv("BC03.variants.freqs.txt")
+barcode3v$replica = 'c'
+minion_variants=rbind(barcode1v, barcode2v, barcode3v)
+
+```
+
+```{r}
+minion_variants %>%
     filter(Qual == 0) %>%
     write_tsv(path="minion_variants.tsv")
 ```
 
 ```{r}
-ggplot(minion, aes(x=Freq)) + geom_histogram(bins=100)
+barcode1=read_tsv("BC01.freqs.txt")
+barcode1$replica = 'a'
+barcode2=read_tsv("BC02.freqs.txt")
+barcode2$replica = 'b'
+barcode3=read_tsv("BC03.freqs.txt")
+barcode3$replica = 'c'
+minion_all=rbind(barcode1, barcode2, barcode3)
 ```
 
+```{r}
+minion_all %>%
+    filter(Qual == 0) %>%
+    write_tsv(path="minion_wt_frequencies.tsv")
+```
+
+
+```{r}
+expectedpositions=read_tsv("expectedpositions.txt")
+```
+
+```{r}
+variant_positions=inner_join(minion_all, expectedpositions, by=c("Pos"), copy=T)
+wildtype_positions=anti_join(minion_all, expectedpositions, by=c("Pos"), copy=T)
+```
+
+```{r}
+wildtype_positions %>%
+  filter(UngappedCoverage >= 50) %>%
+  ggplot(aes(x=Freq)) + geom_histogram(bins=50) + facet_wrap(~replica, ncol=1) + theme_bw() + xlim(0.75, 1.0) + labs(title = "Wildtype allele frequencies by replica")
+```
+
+```{r}
+variant_positions %>%
+  filter(UngappedCoverage >= 50) %>%
+  ggplot(aes(x=Freq)) + geom_histogram(bins=50) + facet_wrap(~replica, ncol=1) + theme_bw() + xlim(0.75, 1.0) + labs(title = "Alternative allele frequencies by replica")
+```
 
 
 ```{r}
 snps = variants %>%
- filter(startsWith(`Polymorphism Type`, 'SNP'))
-joined = inner_join(snps, minion, by=c("Minimum" = "Pos"))
+ filter(stri_startswith_fixed(`Polymorphism Type`, 'SNP'))
+joined = inner_join(snps, minion_variants, by=c("Minimum" = "Pos"))
 ```
 
 ```{r}
 filtered = joined %>%
-  filter(Qual == 14) %>%
+  filter(Qual == 0) %>%
   filter(replica.x == replica.y) %>%
   filter(modality == 'amplicon')
 
@@ -49,15 +91,10 @@ summary(fit)
 
 ```{r}
 p = joined %>% 
-  filter(Qual == 10) %>%
+  filter(Qual == 0) %>%
   filter(modality == 'amplicon') %>%
-  ggplot(aes(x=Freq, y=freq)) + geom_point(size=0.2) + geom_smooth() + xlim(0, 0.5) + ylim(0, 0.5) + xlab("Nanopore allele freq") + ylab("Illumina allele freq") + facet_wrap(~replica.x~modality) + theme_bw(base_size=14)
+  ggplot(aes(x=Freq, y=freq)) + geom_point(size=0.2) + stat_smooth() + xlim(0, 0.5) + ylim(0, 0.5) + xlab("Nanopore allele freq") + ylab("Illumina allele freq") + facet_wrap(~replica.x) + theme_bw(base_size=14)
 p
-```
-
-```{r}
-expectedpositions=read_tsv("refs/expectedpositions.txt")
-
 ```
 
 ```{r}
@@ -69,14 +106,3 @@ a=inner_join(joined, expectedpositions, by=c("Minimum" = "Pos")) %>%
 a
 ```
 
-```{r}
-snps = variants %>%
- filter(startsWith(`Polymorphism Type`, 'SNP'))
-
-joined = inner_join(snps, snps, by="Minimum")
-
-joined %>%
- filter(replica.x == replica.y) %>%
- filter(modality.x != modality.y) %>%
- ggplot(aes(x=freq.x, y=freq.y)) + geom_jitter(size=0.5) + facet_wrap(~replica.x)
-``` 
