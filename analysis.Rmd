@@ -1,10 +1,10 @@
 ---
 title: "R Notebook"
 output:
+  pdf_document: default
+  html_notebook: default
   html_document:
     df_print: paged
-  html_notebook: default
-  pdf_document: default
 ---
 
 ```{r}
@@ -63,11 +63,13 @@ barcode2snps$replica = 'b'
 barcode3snps=read_tsv("BC03.variants.0.03.txt")
 barcode3snps$replica = 'c'
 minion_all_variants=rbind(barcode1snps, barcode2snps, barcode3snps)
-minion_all_variants_positions=left_join(minion_all_variants, expectedpositions, by=c("Pos"))
+minion_all_variants_positions=minion_all_variants %>%
+   left_join(expectedpositions, by=c("Pos" = "Position")) %>%
+   filter(State != 'Remove')
 ```
 ```{r}
 minion_all_variants_positions %>%
-  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=Validated)) + geom_point(size=0.2) + facet_wrap(~Validated, ncol=1)
+  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=State)) + geom_point(size=0.2) + facet_wrap(~State, ncol=1)
 ```
 
 ```{r}
@@ -75,7 +77,9 @@ minion_all_variants_positions %>%
   mutate(StrandAF = pmin(ForwardVariantCov, ReverseVariantCov) / pmax(ForwardVariantCov, ReverseVariantCov)) 
 ```
 ```{r}
-nrow(minion_all_variants_positions %>% filter(Validated == 'True'))
+minion_all_variants_positions %>% 
+       group_by(State) %>%
+       summarise(n=n())
 ```
 ```{r}
 minion_all_variants_positions %>%
@@ -90,11 +94,7 @@ forroc = minion_all_variants_positions %>%
   mutate(StrandAF = pmin(ForwardVariantCov, ReverseVariantCov) / pmax(ForwardVariantCov, ReverseVariantCov)) %>%
   filter(ForwardVariantCov > 10) %>%
   filter(ReverseVariantCov > 10) %>%
-  mutate(D = ifelse(grepl("True", Validated), 1, 0))
-```
-
-```{r}
-nrow(forroc %>% filter(D==1))
+  mutate(D = ifelse(grepl("TRUE", State), 1, 0))
 ```
 
 ```{r}
@@ -102,15 +102,47 @@ ggplot(forroc, aes(d = D, m = Freq)) + geom_roc(labelsize=3, labelround=2) + the
 ```
 
 ```{r}
-minion_all_variants_positions %>%
-  mutate(StrandAF = pmin(ForwardVariantCov, ReverseVariantCov) / pmax(ForwardVariantCov, ReverseVariantCov)) %>%
-  filter(ForwardVariantCov > 10) %>%
-  filter(ReverseVariantCov > 10) %>%
-  filter(Freq > 0.1) %>%
-  group_by(Validated) %>%
-  summarise(n=n())
+nrow(forroc %>% filter(Freq > 0.06))
 ```
 
+```{r}
+ggplot(forroc %>% filter(Freq > 0.06), aes(d = D, m = StrandAF)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
+```
+
+```{r}
+mod1<-glm(D ~ Freq + StrandAF, data=forroc, family="gaussian")
+prob=predict(mod1,type=c("response"))
+forroc$prob = prob
+melted=gather(forroc, variable, value, Freq, StrandAF, prob)
+ggplot(melted, aes(d = D, color = variable, m = value)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
+```
+
+```{r}
+forroc %>%
+  filter(prob > 0.2) %>%
+  group_by(D) %>%
+  write_tsv("minion_roc_classifier_snps.tsv")
+```
+
+```{r}
+forroc %>%
+  filter(prob > 0.2) %>%
+  group_by(D) %>%
+  summarise(n=n())
+
+
+```
+
+```{r}
+#sens=tp/(tp+fn)
+sens=160/(160+8)
+print(sens)
+#spec=tn/(tn+fp)
+spec=8/(8+157)
+print(spec)
+fdr=157/(160+157)
+print(fdr)
+```
 
 ```{r}
 minion_all_variants_positions %>%
@@ -123,18 +155,18 @@ minion_all_variants_positions %>%
 
 ```{r}
 minion_all_variants_positions %>%
-  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=Validated)) + geom_density2d() + facet_wrap(~Validated, ncol=1)
+  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=State)) + geom_density2d() + facet_wrap(~State, ncol=1)
 ```
 
     
 ```{r}
 minion_all_variants_positions %>%
-  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=Validated)) + geom_point(size=0.2) + facet_wrap(~replica, ncol=1)
+  ggplot(aes(x=ForwardVariantCov, y=ReverseVariantCov, color=State)) + geom_point(size=0.2) + facet_wrap(~replica, ncol=1)
 ```
 
 ```{r}
-variant_positions=inner_join(minion_all, expectedpositions, by=c("Pos"), copy=T)
-wildtype_positions=anti_join(minion_all, expectedpositions, by=c("Pos"), copy=T)
+variant_positions=inner_join(minion_all, expectedpositions, by=c("Pos" = "Position"), copy=T)
+wildtype_positions=anti_join(minion_all, expectedpositions %>% filter(State == "True"), by=c("Pos" = "Position"), copy=T)
 ```
 
 ```{r}
@@ -150,24 +182,9 @@ variant_positions %>%
 ```
 
 
-```{r}
-snps = variants %>%
- filter(stri_startswith_fixed(`Polymorphism Type`, 'SNP'))
-joined = inner_join(snps, minion_variants, by=c("Minimum" = "Pos"))
-```
 
 ```{r}
-filtered = joined %>%
-  filter(Qual == 0) %>%
-  filter(replica.x == replica.y) %>%
-  filter(modality == 'amplicon')
-
-fit = lm(filtered$Freq ~ filtered$freq)
-summary(fit)
-```
-
-
-```{r}
+joined=inner_join(minion_variants, variants, by=c("Pos" = "Minimum"), copy=T)
 p = joined %>% 
   filter(Qual == 0) %>%
   filter(modality == 'amplicon') %>%
@@ -176,8 +193,7 @@ p
 ```
 
 ```{r}
-a=inner_join(joined, expectedpositions, by=c("Minimum" = "Pos")) %>%
-  filter(Qual == 0) %>%
+a=joined %>%
   filter(modality == 'amplicon') %>%
   filter(replica.x == replica.y) %>%
   ggplot(aes(x=Freq, y=freq)) + geom_point(size=0.2) + geom_density2d() + xlim(0, 0.5) + ylim(0, 0.5) + xlab("Nanopore allele freq") + ylab("Illumina allele freq") + facet_wrap(~replica.x~modality) + theme_bw(base_size=14)
