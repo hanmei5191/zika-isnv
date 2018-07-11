@@ -115,22 +115,22 @@ ggplot(forroc %>% filter(Freq > 0.06), aes(d = D, m = StrandAF)) + geom_roc(labe
 ## mod1<-glm(D ~ Freq + StrandAF, data=forroc, family="gaussian")
 ## prob=predict(mod1,type=c("response"))
 ## forroc$prob = prob
-library(caret)
-forroc.df <- data.frame(forroc)
-forroc.df$D <- sapply(forroc.df$State,function(x){ifelse(grepl("TRUE", x), "true", "false")})
+## melted=gather(forroc, variable, value, Freq, StrandAF, prob)
+## ggplot(melted, aes(d = D, color = variable, m = value)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
+forroc$C <- sapply(forroc$D,function(x){ifelse(x == 1, "true", "false")})
+
 set.seed(112358)
 fitControl <- trainControl(
     method = "repeatedcv",
     number = 10,
-    repeats = 10,
     classProbs = T,
     savePredictions =T)
-mod1 <- train(D ~ Freq + StrandAF, data = forroc.df,
+mod1 <- train(C ~ Freq + StrandAF, data = forroc,
                 method = "glm",
                 family=binomial(),
               trControl = fitControl)
-forroc.df$prob <- predict(mod1, data=forroc.df, type=c("prob"))
-forroc$prob <- forroc.df$prob[,"true"]
+pred1 <- mod1$pred[with(mod1$pred, order(rowIndex)), ]
+forroc$prob <- pred1[,"true"]
 melted=gather(forroc, variable, value, Freq, StrandAF, prob)
 ggplot(melted, aes(d = D, color = variable, m = value)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
 ```
