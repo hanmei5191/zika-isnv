@@ -1,10 +1,10 @@
 ---
 title: "R Notebook"
 output:
+  pdf_document: default
+  html_notebook: default
   html_document:
     df_print: paged
-  html_notebook: default
-  pdf_document: default
 ---
 
 ```{r}
@@ -111,12 +111,19 @@ nrow(forroc %>% filter(Freq > 0.06))
 ggplot(forroc %>% filter(Freq > 0.06), aes(d = D, m = StrandAF)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
 ```
 
+Logistic regression.
+
 ```{r}
-## mod1<-glm(D ~ Freq + StrandAF, data=forroc, family="gaussian")
-## prob=predict(mod1,type=c("response"))
-## forroc$prob = prob
-## melted=gather(forroc, variable, value, Freq, StrandAF, prob)
-## ggplot(melted, aes(d = D, color = variable, m = value)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
+mod1<-glm(D ~ Freq + StrandAF, data=forroc, family="binomial")
+prob=predict(mod1,type=c("response"))
+forroc$prob = prob
+melted=gather(forroc, variable, value, Freq, StrandAF, prob)
+ggplot(melted, aes(d = D, color = variable, m = value)) + geom_roc(labelsize=3, labelround=2) + theme_bw()
+```
+
+Binomial with cross-validation.
+
+```{r}
 forroc$C <- sapply(forroc$D,function(x){ifelse(x == 1, "true", "false")})
 
 set.seed(112358)

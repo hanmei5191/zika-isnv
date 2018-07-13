@@ -24,3 +24,13 @@ python scripts/freqs.py BC03.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC03.freqs
 python scripts/freqs.py --variants illumina_variants.tsv BC01.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC01.variants.freqs.txt
 python scripts/freqs.py --variants illumina_variants.tsv BC02.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC02.variants.freqs.txt
 python scripts/freqs.py --variants illumina_variants.tsv BC03.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC03.variants.freqs.txt
+python scripts/freqs.py --snpfreqmin 0.03 BC01.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC01.variants.0.03.txt
+python scripts/freqs.py --snpfreqmin 0.03 BC02.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC02.variants.0.03.txt
+python scripts/freqs.py --snpfreqmin 0.03 BC03.trimmed.sorted.bam refs/ZIKV_REF.fasta > BC03.variants.0.03.txt
+
+#strain detection
+bwa index refs/combined.fa
+bwa mem -x ont2d refs/combined.fa fast5_r94.dedup.pass_porechop/BC01.fastq | samtools view -h -F 256 - | samtools view -h -F 2048 - | cut -f 3 | sort | uniq -c > strain_assignment_BC01.txt
+bwa mem -x ont2d refs/combined.fa fast5_r94.dedup.pass_porechop/BC02.fastq | samtools view -h -F 256 - | samtools view -h -F 2048 - | cut -f 3 | sort | uniq -c > strain_assignment_BC02.txt
+bwa mem -x ont2d refs/combined.fa fast5_r94.dedup.pass_porechop/BC03.fastq | samtools view -h -F 256 - | samtools view -h -F 2048 - | cut -f 3 | sort | uniq -c > strain_assignment_BC03.txt
+
